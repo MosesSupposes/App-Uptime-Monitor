@@ -22,10 +22,10 @@ const httpsServer = https.createServer(httpsServerOptions, handleRequest);
 
 // Start the servers
 httpServer.listen(config.httpPort, () => {
-    console.log(`The server is now listening on port ${config.httpPort}`);
+    console.log(`The http server is now listening on port ${config.httpPort}`);
 }); 
 httpsServer.listen(config.httpsPort, () => {
-    console.log(`The server is now listening on port ${config.httpsPort}`);
+    console.log(`The https server is now listening on port ${config.httpsPort}`);
 }); 
 
 // All the server logic for both the http and https server
