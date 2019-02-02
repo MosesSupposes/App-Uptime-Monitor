@@ -84,9 +84,8 @@ function handleRequest(req, res) {
 
 // Request handlers:
 const handlers = {
-    sample(data, cb) {
-        // Callback an http status code and a payload object
-        cb(406, {name: 'sample handler'});
+    ping(data, cb) {
+        cb(200);
     },
 
     notFound(data, cb) {
@@ -96,5 +95,5 @@ const handlers = {
 
 // Request router:
 const router = {
-    'sample': handlers.sample
+    ping: handlers.ping
 };
