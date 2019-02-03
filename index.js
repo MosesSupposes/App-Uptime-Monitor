@@ -9,8 +9,10 @@ const http = require('http');
 const https = require('https');
 const url = require('url');
 const StringDecoder = require('string_decoder').StringDecoder;
-const config = require('./config');
 const fs = require('fs');
+const config = require('./lib/config');
+const handlers = require('./lib/handlers');
+const helpers = require('./lib/helpers');
 
 // Instantiate the HTTP server and HTTPS servers
 const httpServer = http.createServer(handleRequest);
@@ -35,8 +37,10 @@ function handleRequest(req, res) {
         
     // Get the path and query string from parsed Url
     const { path, query: queryStringObject } = parsedUrl;
-    // trim the path
+    // remove the slashes
     const trimmedPath = path.replace(/^\/+|\/+$/g,'');
+    // remove the query string
+    const trimmedPathWithouQuery = trimmedPath.replace(/\?.*$/g, '');
 
     // Get the HTTP method
     const method = req.method.toLowerCase();
@@ -56,25 +60,28 @@ function handleRequest(req, res) {
         buffer += decoder.end();
         // Choose the handler this request should go to
         const chosenHandler = 
-            typeof(router[trimmedPath]) !== 'undefined' 
-                ? router[trimmedPath] 
+            typeof(router[trimmedPathWithouQuery]) !== 'undefined' 
+                ? router[trimmedPathWithouQuery] 
                 : handlers.notFound;
-
         // Construct the data object to send to the handler
         const data = {
-            trimmedPath,
+            path: trimmedPathWithouQuery,
             queryStringObject,
             method,
             headers,
-            payload: buffer
+            payload: helpers.parseJsonToObject(buffer)
         };
 
         // Route the request to the handler specified in the router
-        chosenHandler(data, function routeReqToHandler(statusCode=200, payload={}) {
+        chosenHandler(data, (statusCode=200, payload={}) => {
             // Convert the paylad to a string
             const payloadString = JSON.stringify(payload);
             // Return the response
-            res.setHeader('Content-Type', 'application/json');
+            try {
+                res.setHeader('Content-Type', 'application/json');
+            } catch (e) {
+                console.log('Headers were likely already sent ', e);
+            }
             res.writeHead(statusCode);
             res.end(payloadString);
             console.log('Returning this response:', statusCode, payloadString);
@@ -82,18 +89,8 @@ function handleRequest(req, res) {
     });
 }
 
-// Request handlers:
-const handlers = {
-    ping(data, cb) {
-        cb(200);
-    },
-
-    notFound(data, cb) {
-        cb(404);
-    }
-};
-
 // Request router:
 const router = {
-    ping: handlers.ping
+    ping: handlers.ping,
+    users: handlers.users
 };
