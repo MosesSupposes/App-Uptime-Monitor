@@ -79,11 +79,11 @@ function handleRequest(req, res) {
             // Return the response
             try {
                 res.setHeader('Content-Type', 'application/json');
+                res.writeHead(statusCode);
+                res.end(payloadString);
             } catch (e) {
-                console.log('Headers were likely already sent ', e);
+                console.log('Headers were likely already sent \n', e);
             }
-            res.writeHead(statusCode);
-            res.end(payloadString);
             console.log('Returning this response:', statusCode, payloadString);
         });
     });
