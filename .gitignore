@@ -1,2 +1,13 @@
 All the haters
-/.data
+
+#iOS files
+.DS_Store
+
+#ssl certificates
+https/*.*
+
+#log files
+.logs/*.*
+
+#makeshift db entries
+.data
