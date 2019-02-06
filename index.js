@@ -10,7 +10,7 @@ const app = {
     // Start the server and workers
     init() {
         server.init();
-        // workers.init();
+        workers.init();
     }
 };
 
