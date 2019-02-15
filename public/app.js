@@ -13,6 +13,9 @@ const app = {
         // Bind all form submissions
         this.bindForms.call(this);
 
+        // Bind the logout button
+        this.bindLogoutButton.call(this);
+
         // Retrieve the token from localstorage and set it in config
         this.getSessionToken.call(this);
 
@@ -25,7 +28,7 @@ const app = {
         // Interface for making api calls
         async request(headers={}, path='/', method='GET', queryStringObj={}, payload={}, cb=false) {
             // Construct the request url
-            const requestUrl = `${path}`;
+            var requestUrl = `${path}`;
             var queriesAppendedToUrl = 0;
             // For each query string parameter sent, add it to the path
             for (let queryKey in queryStringObj) {
@@ -122,6 +125,36 @@ const app = {
         });
     },
 
+    // Bind the logout button
+    bindLogoutButton() {
+        document.getElementById('logoutButton').addEventListener('click', function handleLogout(e) {
+            // Stop it from redirecting anywhere
+            e.preventDefault();
+            // Log the user out
+            this.logUserOut();            
+        }.bind(this));
+    },
+
+    // Log the user out and then redirect them
+    logUserOut() {
+        // Retrieve the current token id
+        var tokenId = (typeof(this.config.sessionToken.id) == 'string') 
+            ? this.config.sessionToken.id 
+            : false;
+
+        // Send the current token to the tokens endpoint to delete it
+        var queryStringObj = {
+            'id' : tokenId
+        };
+
+        this.client.request(undefined,'api/tokens', 'DELETE', queryStringObj, undefined, function deleteSessionToken(statusCode,responsePayload) {
+            // Set the app.config token as false
+            this.setSessionToken(false);
+            // Send the user to the logged out page
+            window.location = '/session/deleted';
+        }.bind(this));
+    },
+
     // Form response processor
     formResponseProcessor(formId, requestPayload, responsePayload) {
         var functionToCall = false;
@@ -156,7 +189,7 @@ const app = {
         }
     },
 
-    // Get the session token from localstorage and set it in the app.config object, then toggle CSS loggedInClass 
+    // Retrieve the session token from localstorage and set it in the app.config object, then toggle CSS loggedInClass 
     getSessionToken() {
         var tokenString = localStorage.getItem('token');
         if (typeof(tokenString) == 'string') {
@@ -174,7 +207,7 @@ const app = {
         }
     },
 
-    // Toggle the 'loggedIn' class on the body
+    // Set/remove the 'loggedIn' class on the body
     setLoggedInClass(shouldSet) {
         var target = document.querySelector("body");
         (shouldSet) 
