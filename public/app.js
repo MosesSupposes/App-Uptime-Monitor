@@ -11,16 +11,15 @@ const app = {
     // Init (bootstrapping)
     init() {
         // Bind all form submissions
-        this.bindForms.call(this);
-
+        this.bindForms();
         // Bind the logout button
-        this.bindLogoutButton.call(this);
-
+        this.bindLogoutButton();
         // Retrieve the token from localstorage and set it in config
-        this.getSessionToken.call(this);
-
+        this.getSessionToken();
         // Renew the token once an hour
-        this.tokenRenewalLoop.call(this);
+        this.tokenRenewalLoop();
+        // Load data onto page
+        this.loadDataOnPage();
     },
 
     // AJAX Client (for the restful API)
@@ -57,7 +56,7 @@ const app = {
             }
 
             // Send the payload as JSON
-            if (Object.keys(payload).length > 0) {
+            if (Object.keys(payload).length > 0 && method.toUpperCase() != 'GET') {
                 requestOptions.body = JSON.stringify(payload);
             }
 
@@ -82,47 +81,74 @@ const app = {
 
     // Bind the forms
     bindForms() {
-        document.querySelector('form') && 
-        document.querySelector('form').addEventListener('submit', function handleFormSubmit(e) {
-            // Stop it from submitting
-            e.preventDefault();
-            const formId = this.id;
-            const path = this.action;
-            const method = this.method.toUpperCase();
+        if (document.querySelector('form')) {
+            const allForms = Array.from(document.querySelectorAll('form'));
+            allForms.forEach(form => {
+                form.addEventListener('submit', function handleFormSubmission(e) {
+                    // Stop it from submitting
+                    e.preventDefault();
+                    const formId = this.id;
+                    const path = this.action;
+                    const method = this.method.toUpperCase();
+                    // Hide the error message (if it's currently shown due to a previous error)
+                    document.querySelector(`#${formId} .formError`).style.display = 'hidden';
 
-            // Hide the error message (if it's currently shown due to a previous error)
-            document.querySelector(`#${formId} .formError`).style.display = 'hidden';
+                    // Hide the success message (if it's currently shown due to a previous success message)
+                    if (document.querySelector(`#${formId} .formSuccess`)) {
+                        document.querySelector(`#${formId} .formSuccess`).style.display = 'none';
+                    }
+        
+                    // Turn the inputs into a payload
+                    const elements = Array.from(this.elements)
+                        // Filter out the submit button (it's not needed for payload)
+                        .filter(element => element.type !== 'submit');
 
-            // Turn the inputs into a payload
-            const elements = Array.from(this.elements)
-                .filter(element => element.type !== 'submit');
-            const payload = elements.reduce((payload, element) => {
-                const valueOfElement = (element.type == 'checkbox') ? 
-                    element.checked 
-                : element.value;
-                payload[element.name] = valueOfElement;
-                return payload;
-            }, {});
+                    const payload = elements.reduce((payload, element) => {
+                        const valueOfElement = (element.type == 'checkbox') ? 
+                            element.checked 
+                        : element.value;
+                        payload[element.name] = valueOfElement;
+                        return payload;
+                    }, {});
 
-            // Call the API
-            app.client.request(undefined, path, method, undefined, payload, function handleApiResponse(statusCode, responsePayload) {
-                // Display an error on the form if needed
-                if (statusCode !== 200) {
-                    // Try to get the error from the api, or set a default error message
-                    let error = (typeof(responsePayload.Error) == 'string') ?
-                        responsePayload.Error
-                    : 'An error has occured, please try again';
-                    // Set the formError field with the error text
-                    document.querySelector(`#${formId} .formError`).innerHTML = error;
+                    // Call the API either way
+                    if (formId.includes('accountEdit')) {
+                        // Currently there's a weird bug that specifies the method on 'accountEdit1' and 'accountEdit2' forms as 'GET', even though they're specified as 'POST' in the markup. This is a temporary workaround that I'll use until the bug gets fixed.
+                        const method = this.querySelector('input').value;
 
-                    // Show (unhide) the form error field on the form
-                    document.querySelector(`#${formId} .formError`).style.display = 'block';
-                } else {
-                    // If successful, send to form response processor
-                    app.formResponseProcessor(formId, payload, responsePayload);
-                }
+                        // Call the API
+                        app.client.request(undefined, path, method, undefined, payload, handleApiResponse);
+                    } else {
+                        // Call the API
+                        app.client.request(undefined, path, method, undefined, payload, handleApiResponse);
+                    }
+
+                    // Callback used for calling the API (see conditional logic above)
+                    function handleApiResponse(statusCode, responsePayload) {
+                        // Display an error on the form if needed
+                        if (statusCode !== 200) {
+                            if (statusCode == 403) {
+                                // Log the user out
+                                app.logUserOut();
+                            } else {
+                                // Try to get the error from the api, or set a default error message
+                                let error = (typeof(responsePayload.Error) == 'string') ?
+                                responsePayload.Error
+                                : 'An error has occured, please try again';
+                                // Set the formError field with the error text
+                                document.querySelector(`#${formId} .formError`).innerHTML = error;
+                                
+                                // Show (unhide) the form error field on the form
+                                document.querySelector(`#${formId} .formError`).style.display = 'block';
+                            }
+                        } else {
+                            // If successful, send to form response processor
+                            app.formResponseProcessor(formId, payload, responsePayload);
+                        }
+                    }
+                });
             });
-        });
+        }
     },
 
     // Bind the logout button
@@ -166,9 +192,9 @@ const app = {
                 'password' : requestPayload.password
             };
 
-            this.client.request(undefined,'api/tokens','POST',undefined,newPayload, function createSessionToken(newStatusCode, newSessionToken) {
+            this.client.request(undefined, 'api/tokens', 'POST', undefined,newPayload, function createSessionToken(newStatusCode, newSessionToken) {
                 // Display an error on the form if needed
-                if(newStatusCode !== 200){
+                if (newStatusCode !== 200) {
                     // Set the formError field with the error text
                     document.querySelector(`#${formId} .formError`).innerHTML = 'Sorry, an error has occured. Please try again.';
 
@@ -186,6 +212,12 @@ const app = {
         if (formId == 'sessionCreate') {
             this.setSessionToken(responsePayload);
             window.location = '/checks/all';
+        }
+
+        // If forms saved successfully and they have success messages, show them
+        var formsWithSuccessMessages = ['accountEdit1', 'accountEdit2'];
+        if (formsWithSuccessMessages.includes(formId)) {
+            document.querySelector(`#${formId} .formSuccess`).style.display = 'block';
         }
     },
 
@@ -236,7 +268,7 @@ const app = {
                 'id' : currentToken.id,
                 'extend' : true,
             };
-            this.client.request(undefined,'api/tokens','PUT',undefined,payload,function renewSessionToken(statusCode,responsePayload) {
+            this.client.request(undefined, 'api/tokens', 'PUT', undefined, payload, function renewSessionToken(statusCode,responsePayload) {
                 // Display an error on the form if needed
                 if (statusCode == 200) {
                     // Get the new token details
@@ -269,6 +301,45 @@ const app = {
               !err && console.log("Token renewed successfully @ "+Date.now());
             });
           }, 1000 * 59);
+    },
+
+    // Load the data onto the page
+    loadDataOnPage() {
+        // Get the current page from the body class
+        var bodyClasses = document.querySelector("body").classList;
+        var primaryClass = typeof(bodyClasses[0]) == 'string' ? bodyClasses[0] : false;
+
+        // Logic for account settings page
+        primaryClass == 'accountEdit' && this.loadAccountEditPage();
+    },
+
+    // Load the account edit page specifically
+    loadAccountEditPage() {
+        // Get the phone number from the current token, or log the user out if none is there
+        var phone = (typeof(this.config.sessionToken.phone) == 'string')
+            ? this.config.sessionToken.phone 
+            : false;
+        if (phone) {
+            // Fetch the user data
+            const queryStringObj = { phone };
+            this.client.request(undefined, 'api/users', 'GET', queryStringObj, undefined, function fetchUserData(statusCode, userData) {
+                if (statusCode == 200){
+                    // Put the data into the forms as values where needed
+                    document.querySelector("#accountEdit1 .firstNameInput").value = userData.firstName;
+                    document.querySelector("#accountEdit1 .lastNameInput").value = userData.lastName;
+                    document.querySelector("#accountEdit1 .displayPhoneInput").value = userData.phone;
+
+                    // Put the hidden phone field into both forms
+                    let hiddenPhoneInputs = Array.from(document.querySelectorAll("input.hiddenPhoneNumberInput"));
+                    hiddenPhoneInputs.forEach(input => input.value = userData.phone);
+                } else {
+                    // If the request comes back as something other than 200, log the user out (on the assumption that the api is temporarily down or the user's token is bad)
+                    app.logUserOut();
+                }
+            });
+        } else {
+            app.logUserOut();
+        }
     }
 };
 
