@@ -89,7 +89,7 @@ const app = {
                     e.preventDefault();
                     const formId = this.id;
                     const path = this.action;
-                    const method = this.method.toUpperCase();
+                    var method = this.method.toUpperCase();
                     
                     // Hide the error message (if it's currently shown due to a previous error)
                     document.querySelector(`#${formId} .formError`).style.display = 'hidden';
@@ -105,30 +105,50 @@ const app = {
                         .filter(element => element.type !== 'submit');
 
                     const payload = elements.reduce((payload, element) => {
-                        const valueOfElement = (element.type == 'checkbox') ? 
-                            element.checked 
-                        : element.value;
-                        payload[element.name] = valueOfElement;
+                        // Determine class of element and set value accordingly
+                        const classOfElement = (typeof(element.classList.value) == 'string' && element.classList.value.length > 0) 
+                            ? element.classList.value 
+                            : '';
+                        const valueOfElement = ((element.type == 'checkbox') &&
+                        !(classOfElement.includes('multiselect')))
+                            ? element.checked 
+                            : !(classOfElement.includes('intval')) 
+                                ? element.value 
+                                : parseInt(element.value);
+                        const elementIsChecked = element.checked;
+                        // Override the method of the form if the input's name is _method
+                        var nameOfElement = element.name;
+                        if (nameOfElement == '_method') {
+                            method = valueOfElement.toUpperCase();
+                        } else {
+                            // Create a payload field named "method" if the elements name is actually httpmethod
+                            if (nameOfElement == 'httpmethod') {
+                                nameOfElement = 'method';
+                            }
+                            // If the element has the class "multiselect" add its value(s) as array elements
+                            if (classOfElement.includes('multiselect')) {
+                              if (elementIsChecked) {
+                                // Push any multiselect checkbox values onto an array.
+                                payload[nameOfElement] = ((typeof(payload[nameOfElement]) == 'object') && (payload[nameOfElement] instanceof Array)) 
+                                    ? payload[nameOfElement] 
+                                    : [];
+                                payload[nameOfElement].push(valueOfElement);
+                                }
+                            } else {
+                                payload[nameOfElement] = valueOfElement;
+                            }
+                        }
+                        
                         return payload;
                     }, {});
 
-                    // Call the API either way
-                    if (formId.includes('accountEdit')) {
-                        // Currently there's a weird bug that specifies the method on 'accountEdit1' and 'accountEdit2' forms as 'GET', even though they're specified as 'POST' in the markup. This is a temporary workaround that I'll use until the bug gets fixed.
-                        const method = this.querySelector('input').value;
+                    
+                    // If the method is DELETE, the payload should be a queryStringObject instead
+                    const queryStringObject = (method == 'DELETE') ? payload : {};
 
-                        // If the method is DELETE, the payload should be a queryStringObject instead
-                        const queryStringObj = method == 'DELETE' ? payload : {};
-
-                        // Call the API
-                        app.client.request(undefined, path, method, queryStringObj, payload, handleApiResponse);
-                    } else {
-                        // If the method is DELETE, the payload should be a queryStringObject instead
-                        const queryStringObject = method == 'DELETE' ? payload : {};
-
-                        // Call the API
-                        app.client.request(undefined, path, method, queryStringObject, payload, handleApiResponse);
-                    }
+                    // Call the API
+                    app.client.request(undefined, path, method, queryStringObject, payload, handleApiResponse);
+                    
 
                     // Callback used for calling the API (see conditional logic above)
                     function handleApiResponse(statusCode, responsePayload) {
@@ -233,6 +253,11 @@ const app = {
         if (formId == 'accountEdit3') {
             this.logUserOut(false);
             window.location = '/account/deleted';
+        }
+
+        // If the user has just created a new check successfully, redirect back to the dashboard
+        if (formId == 'checksCreate') {
+            window.location = 'checks/all';
         }
     },
 
