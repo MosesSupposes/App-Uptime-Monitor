@@ -350,7 +350,14 @@ const app = {
         var primaryClass = typeof(bodyClasses[0]) == 'string' ? bodyClasses[0] : false;
 
         // Logic for account settings page
-        primaryClass == 'accountEdit' && this.loadAccountEditPage();
+        if (primaryClass == 'accountEdit') {
+            this.loadAccountEditPage();
+        }
+
+        // Logic for dashboard page
+        if (primaryClass == 'checksList') {
+            this.loadChecksListPage();
+        }
     },
 
     // Load the account edit page specifically
@@ -375,6 +382,73 @@ const app = {
                 } else {
                     // If the request comes back as something other than 200, log the user out (on the assumption that the api is temporarily down or the user's token is bad)
                     app.logUserOut();
+                }
+            });
+        } else {
+            app.logUserOut();
+        }
+    },
+
+    // Load the dashboard page specifically
+    loadChecksListPage() {
+        // Get the phone number from the current token, or log the user out if none is there
+        var phone = (typeof(this.config.sessionToken.phone) == 'string') 
+            ? this.config.sessionToken.phone 
+            : false;
+        if (phone) {
+            // Fetch the user data
+            const queryStringObj = { phone };
+            this.client.request(undefined, 'api/users', 'GET', queryStringObj, undefined, function fetchUserData(statusCode,responsePayload) {
+                if(statusCode == 200) {
+                    const { checks } = responsePayload;
+                    // Determine how many checks the user has
+                    const allChecks = ((typeof(checks) == 'object') && (checks instanceof Array) && (checks.length > 0))
+                        ? checks 
+                        : [];
+                    if (allChecks.length > 0) {
+                        // Show each created check as a new row in the table
+                        allChecks.forEach(checkId => {
+                            // Get the data for the check
+                            var newQueryStringObj = { id : checkId };
+                            app.client.request(undefined, 'api/checks', 'GET', newQueryStringObj,undefined, function fetchUserChecks(statusCode, responsePayload) {
+                                if (statusCode == 200) {
+                                    // Make the check data into a table row
+                                    var table = document.getElementById("checksListTable");
+                                    var tr = table.insertRow(-1);
+                                    tr.classList.add('checkRow');
+                                    var td0 = tr.insertCell(0);
+                                    var td1 = tr.insertCell(1);
+                                    var td2 = tr.insertCell(2);
+                                    var td3 = tr.insertCell(3);
+                                    var td4 = tr.insertCell(4);
+                                    td0.innerHTML = responsePayload.method.toUpperCase();
+                                    td1.innerHTML = responsePayload.protocol+'://';
+                                    td2.innerHTML = responsePayload.url;
+                                    var state = (typeof(responsePayload.state) == 'string')
+                                        ? responsePayload.state 
+                                        : 'unknown';
+                                    td3.innerHTML = state;
+                                    td4.innerHTML = `<a href="/checks/edit?id='${responsePayload.id}'">View / Edit / Delete</a>`;
+                                } else {
+                                    console.log("Error trying to load check ID: ", checkId);
+                                }
+                            });
+                        });
+            
+                        if(allChecks.length < 5) {
+                            // Show the createCheck CTA
+                            document.getElementById("createCheckCTA").style.display = 'block';
+                        }
+            
+                    } else {
+                        // Show 'you have no checks' message
+                        document.getElementById("noChecksMessage").style.display = 'table-row';
+                        // Show the createCheck CTA
+                        document.getElementById("createCheckCTA").style.display = 'block';
+                    }
+                } else {
+                    // If the request comes back as something other than 200, log the user out (on the assumption that the api is temporarily down or the user's token is bad)
+                    this.logUserOut();
                 }
             });
         } else {
