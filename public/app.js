@@ -259,6 +259,15 @@ const app = {
         if (formId == 'checksCreate') {
             window.location = 'checks/all';
         }
+
+        if (formId == 'checksEdit1') {
+            document.querySelector(`#${formId} .formSuccess`).style.display = 'block';
+        }
+
+        // If the user just deleted a check, redirect them to the dashboard
+        if (formId == 'checksEdit2') {
+            window.location = '/checks/all';
+        }
     },
 
     // Retrieve the session token from localstorage and set it in the app.config object, then toggle CSS loggedInClass 
@@ -358,6 +367,11 @@ const app = {
         if (primaryClass == 'checksList') {
             this.loadChecksListPage();
         }
+
+        // Logic for check details page
+        if (primaryClass == 'checksEdit') {
+            this.loadChecksEditPage();
+        }
     },
 
     // Load the account edit page specifically
@@ -399,7 +413,7 @@ const app = {
             // Fetch the user data
             const queryStringObj = { phone };
             this.client.request(undefined, 'api/users', 'GET', queryStringObj, undefined, function fetchUserData(statusCode,responsePayload) {
-                if(statusCode == 200) {
+                if (statusCode == 200) {
                     const { checks } = responsePayload;
                     // Determine how many checks the user has
                     const allChecks = ((typeof(checks) == 'object') && (checks instanceof Array) && (checks.length > 0))
@@ -450,9 +464,55 @@ const app = {
                     // If the request comes back as something other than 200, log the user out (on the assumption that the api is temporarily down or the user's token is bad)
                     this.logUserOut();
                 }
+            }.bind(this));
+        } else {
+            this.logUserOut();
+        }
+    },
+
+    // Load the checks edit page specifically
+    loadChecksEditPage() {
+        // Get the check id from the query string, if none is found then redirect back to dashboard
+        console.log(id)
+        var id = ((typeof(window.location.href.split('=')[1]) == 'string') && (window.location.href.split('=')[1].length > 0))
+            ? window.location.href.split('=')[1] 
+            : false;
+        // Get rid of the cruft that comes with query strings
+        id = id.replace(/%27/g, '').trim();
+        if (id) {
+            // Fetch the check data
+            var queryStringObj = { id };
+            this.client.request(undefined, 'api/checks', 'GET', queryStringObj, undefined, function fetchUserChecks(statusCode, responsePayload) {
+                if (statusCode == 200) {
+                    // Put the hidden id field into both forms
+                    var hiddenIdInputs = Array.from(document.querySelectorAll("input.hiddenIdInput"));
+
+                    hiddenIdInputs.forEach(input => {
+                        input.value = responsePayload.id;
+                    })
+
+                    // Put the data into the top form as values where needed
+                    document.querySelector("#checksEdit1 .displayIdInput").value = responsePayload.id;
+                    document.querySelector("#checksEdit1 .displayStateInput").value = responsePayload.state;
+                    document.querySelector("#checksEdit1 .protocolInput").value = responsePayload.protocol;
+                    document.querySelector("#checksEdit1 .urlInput").value = responsePayload.url;
+                    document.querySelector("#checksEdit1 .methodInput").value = responsePayload.method;
+                    document.querySelector("#checksEdit1 .timeoutInput").value = responsePayload.timeoutSeconds;
+
+                    var successCodeCheckboxes = Array.from(document.querySelectorAll("#checksEdit1 input.successCodesInput"));
+
+                    successCodeCheckboxes.forEach(checkbox => {
+                        if (responsePayload.successCodes.includes(parseInt(checkbox.value))) {
+                            checkbox.checked = true;
+                        }
+                    });
+                } else {
+                    // If the request comes back as something other than 200, redirect back to dashboard
+                    window.location = '/checks/all';
+                }
             });
         } else {
-            app.logUserOut();
+            window.location = '/checks/all';
         }
     }
 };
