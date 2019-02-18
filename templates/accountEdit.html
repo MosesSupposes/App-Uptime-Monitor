@@ -45,3 +45,15 @@
 		</div>
 	</form>
 </div>
+
+<hr />
+<h2>Delete Your Account</h2>
+<form action="/api/users" id="accountEdit3" method="DELETE">
+	<input type="hidden" name="_method" value="DELETE" />
+	<div class="formError"></div>
+	<div class="warning">Warning: This action cannot be undone.</div>
+	<input type="hidden" class="hiddenPhoneNumberInput" name="phone" />
+	<div class="inputWrapper ctaWrapper">
+		<button class="cta red" type="submit">Delete Account</button>
+	</div>
+</form>
