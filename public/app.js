@@ -260,6 +260,7 @@ const app = {
             window.location = 'checks/all';
         }
 
+        // Display success message after successfully editing a check
         if (formId == 'checksEdit1') {
             document.querySelector(`#${formId} .formSuccess`).style.display = 'block';
         }
