@@ -212,7 +212,6 @@ const app = {
 
     // Form response processor
     formResponseProcessor(formId, requestPayload, responsePayload) {
-        var functionToCall = false;
         // If account creation was successful, try to immediately log the user in
         if (formId == 'accountCreate') {
             // Take the phone and password, and use it to log the user in
