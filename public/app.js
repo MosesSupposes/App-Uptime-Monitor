@@ -490,7 +490,7 @@ const app = {
 
                     hiddenIdInputs.forEach(input => {
                         input.value = responsePayload.id;
-                    })
+                    });
 
                     // Put the data into the top form as values where needed
                     document.querySelector("#checksEdit1 .displayIdInput").value = responsePayload.id;
