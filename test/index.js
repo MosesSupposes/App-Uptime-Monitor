@@ -3,7 +3,6 @@
  */
 
 // Dependencies
-const assert = require('assert');
 const { outputs: clFormats } = require('../lib/cli');
 
 // Application logic for the test runner
@@ -97,32 +96,8 @@ const _app = {
 
 // Container for the tests
 _app.tests = {
-    unit: {}
+    unit: require('./unit')
 };
-
-//#region example unit tests
-const sampleUnitTests = { getANumber() { return 1 } };
-// Assert that the getANumber function is returning a number
-_app.tests.unit['sampleUnitTests.getANumber should return a number'] = done => {
-    var val = sampleUnitTests.getANumber();
-    assert.equal(typeof(val), 'number');
-    done();
-};
-
-// Assert that the getANumber function is returning a 1
-_app.tests.unit['sampleUnitTests.getANumber should return 1'] = done => {
-    var val = sampleUnitTests.getANumber();
-    assert.equal(val, 1);
-    done();
-};
-
-// Assert that the getANumber function is returning a 2
-_app.tests.unit['sampleUnitTests.getANumber should return 2'] = done => {
-    var val = sampleUnitTests.getANumber();
-    assert.equal(val, 2);
-    done();
-};
-//#endregion
 
 // Run the tests
 _app.runTests();
