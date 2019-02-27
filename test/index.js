@@ -5,6 +5,9 @@
 // Dependencies
 const { outputs: clFormats } = require('../lib/cli');
 
+// Override the NODE_ENV variable
+process.env.NODE_ENV = 'testing';
+
 // Application logic for the test runner
 const _app = {
     // Run all the tests, collecting the errors and successors
@@ -91,12 +94,16 @@ const _app = {
         }
 
         clFormats.heading('END TEST REPORT');
+
+        // Explicitly stop the app from running after the test report ends
+        process.exit(0);
     }
 };
 
-// Container for the tests
+// Container for the tests to be ran
 _app.tests = {
-    unit: require('./unit')
+    unit: require('./unit'),
+    api: require('./api')
 };
 
 // Run the tests
