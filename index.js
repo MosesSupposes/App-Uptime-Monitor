@@ -6,19 +6,25 @@
 const server = require('./lib/server');
 const workers = require('./lib/workers');
 const cli = require('./lib/cli');
+const cluster = require('cluster')
+const os = require('os')
 
 const app = {
     init(cb) {
-        // Start the server
-        server.init();
-        // Start the workers
-        workers.init();
-        // Start the CLI, but make sure it starts last
-        setImmediate(() => {
-            cli.init();
-            // Finally, callback
-            cb && cb();
-        });
+        // If we're on the master thread, start the background workers and the CLI
+        if (cluster.isMaster) {
+            workers.init();
+            setImmediate(() => {
+                cli.init();
+                cb && cb();
+            });
+            
+            // Fork the process
+            os.cpus().forEach(cpu => cluster.fork())
+        } else {
+            // If the current thread is a fork, start the server
+            server.init();
+        }
     }
 };
 
